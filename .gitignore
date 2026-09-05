@@ -1,0 +1,16 @@
+# Generated secrets and machine-specific state
+windows-node/private/
+windows-node/logs/
+windows-node/downloads/
+windows-node/bin/
+windows-node/*-status.json
+windows-node/*-result.json
+windows-node/*-evidence.json
+windows-node/node-process.json
+windows-node/node-error.json
+
+# Local tooling and archives
+.freebuff/
+*.zip
+Thumbs.db
+.DS_Store
