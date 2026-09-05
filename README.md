@@ -29,6 +29,7 @@ flowchart TD
 
 ## 文档目录
 
+- [部署进展（2026-09-05）](docs/deployment-progress-2026-09-05.md)：已完成测试、外部 IPv6 入站阻塞及最小改动路线；当前尚未通过校园端验收。
 - [项目调研](docs/project-review.md)：东北大学相关项目及同类方案对比。
 - [架构与选型](docs/architecture-and-options.md)：VPS、本地/公司电脑、移动端的适用条件。
 - [Windows 验证指南](docs/windows-validation.md)：先验证网络，再决定是否部署。
