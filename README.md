@@ -1,12 +1,13 @@
 # 东北大学校园网 IPv6 方案调研与部署决策指南
 
-本仓库整理了东北大学校园网 IPv6 相关开源项目、可行架构、Windows 自建节点的验证流程，以及手机和平板接入时的安全与验收要求。
+本仓库整理了东北大学校园网 IPv6 相关开源项目、可行架构、校园 Linux 服务器部署记录、Windows 自建节点验证流程，以及手机和平板接入时的安全与验收要求。
 
-> 调研快照：2026-09-03。项目活跃度、校园网计费策略和服务商产品能力都可能变化，实施前必须复核。
+> 调研快照：2026-09-07。项目活跃度、校园网计费策略和服务商产品能力都可能变化，实施前必须复核。
 
 ## 先说结论
 
 - 利用校内 IPv6 连接校外双栈节点，再由节点访问 IPv4 互联网，在技术上可行。
+- 2026-09-07 已验证另一条路线：校园设备通过 IPv6 连接校园 Linux 服务器，服务器经 IPv6 建立 WARP 隧道，再由 Cloudflare 提供 IPv4 出口。
 - “免流量费”不是协议自带能力，只在学校当前计费规则未对这类 IPv6 流量计费时成立，不能承诺长期免费。
 - 仅有 IPv6 出站能力还不够；自建 Windows 节点必须能被校园网设备从公网 IPv6 主动访问。
 - 登录校园网的工具与 IPv6 转发工具是两类软件，不应混为一谈。
@@ -15,21 +16,19 @@
 ## 推荐路线
 
 ```mermaid
-flowchart TD
-  A[校园 Wi-Fi 设备获得 IPv6] -->|否| B[方案不可用：先解决校园 IPv6]
-  A -->|是| C{已有校外双栈节点?}
-  C -->|双栈 VPS| D[核验公网 IPv6 与服务商条款]
-  C -->|公司 Windows 电脑| E[核验授权、入站 IPv6、防火墙与持续在线]
-  D --> F[小流量试验]
-  E --> F
-  F --> G{计费、稳定性和速度均达标?}
-  G -->|是| H[逐步扩大使用]
-  G -->|否| I[停止并回退]
+flowchart LR
+  A[校园手机／平板] -->|校园 IPv6| B[校园 Linux 服务器<br/>sing-box]
+  B -->|本机 SOCKS5| C[Cloudflare WARP]
+  C -->|外层连接使用 IPv6| D[Cloudflare 网络]
+  D -->|IPv4 出口| E[IPv4 互联网]
 ```
+
+该路线目前只完成技术连通性验证。正式使用前仍需完成校园账户计费 A/B、UDP、地址变化和长期稳定性测试。
 
 ## 文档目录
 
-- [部署进展（2026-09-05）](docs/deployment-progress-2026-09-05.md)：已完成测试、外部 IPv6 入站阻塞及最小改动路线；当前尚未通过校园端验收。
+- [校园服务器 + WARP 部署记录（2026-09-07）](docs/campus-server-warp-deployment-2026-09-07.md)：当前已打通的架构、配置边界、验证证据和后续验收。
+- [Windows 节点部署进展（2026-09-05）](docs/deployment-progress-2026-09-05.md)：外部 IPv6 入站阻塞及历史排查记录。
 - [项目调研](docs/project-review.md)：东北大学相关项目及同类方案对比。
 - [架构与选型](docs/architecture-and-options.md)：VPS、本地/公司电脑、移动端的适用条件。
 - [Windows 验证指南](docs/windows-validation.md)：先验证网络，再决定是否部署。
@@ -41,7 +40,7 @@ flowchart TD
 ## 最小成功条件
 
 1. 手机或平板连接校园 Wi-Fi 后拥有可用 IPv6。
-2. 校外节点同时拥有公网 IPv6 和可用 IPv4 出口。
+2. 节点拥有校园端可达的 IPv6，并具备经 IPv6 建立的可用 IPv4 出口。
 3. 校园端能主动连接节点的指定 IPv6 端口。
 4. 节点持续在线，防火墙仅开放必要端口。
 5. A/B 测试确认校园账户计费没有异常增长。
@@ -56,4 +55,4 @@ flowchart TD
 
 ## 推荐实施顺序
 
-先完成 `docs/windows-validation.md` 的只读和低风险检查；满足入站可达条件后，可以使用 `windows-node` 中的脚本做小流量部署。任何正式使用都应以 `docs/acceptance-checklist.md` 的结果为准。
+当前校园 Linux 服务器路线见 `docs/campus-server-warp-deployment-2026-09-07.md`。Windows 校外节点仍可按 `docs/windows-validation.md` 验证，但其所在 5G 网络的公网 IPv6 入站尚未打通。任何正式使用都应以 `docs/acceptance-checklist.md` 的结果为准。
