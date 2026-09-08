@@ -18,6 +18,21 @@
 
 该结果只证明技术链路成立，不证明学校当前或未来一定不计费。校园账户计费仍需按 [验收清单](acceptance-checklist.md) 做受控 A/B 测试。
 
+## 2026-09-08 复测更新
+
+当前已恢复并保留本页记录的原始安全配置：Shadowsocks 仅监听 TCP，所有代理业务出站继续指向 WARP 本地 SOCKS5。复测期间增加过的 UDP、备用端口、临时 HTTP 测试服务和健康检查均已撤销。
+
+本次复测得到以下新结论：
+
+- 校园 Android 设备曾从校园全球单播 IPv6 成功连接服务器并取得 Cloudflare IPv4 出口，证明 TCP 链路可用。
+- 校园无线网段到服务器网段的 IPv6 可达性存在间歇性：故障时服务器服务、监听端口、WARP 和系统防火墙均正常，但服务端没有收到客户端连接或临时 HTTP 测试请求。
+- WARP 本地 SOCKS5 对 SOCKS5 UDP Associate 返回回复码 `7`（Command not supported），因此不能通过现有 `127.0.0.1:40000` 出站承载 UDP。
+- 曾分别测试 WARP `warp` 和 `tunnel_only` 全隧道模式。即使保留校园 IPv4 私网与校园 IPv6 前缀的排除路由，切换后 SSH 和代理入站仍会中断。
+- 尝试启用 WARP 的本地网络访问覆盖时，消费版客户端返回 `Operation not authorized in this context`。两次全隧道测试均已回退到 WARP 本地代理模式。
+- 仅在 sing-box 中开放 UDP 并使用 `direct` 出站，会让 UDP 使用服务器的普通校园出口，违反“代理业务不能回退到校园 IPv4”的约束，因此未保留该配置。
+
+因此，当前服务器方案的边界已经明确：它适合浏览器、下载等 TCP 流量验证，不适合作为 UU 远程、游戏、语音视频等全 TCP/UDP 场景的最终方案。
+
 ## 已部署组件
 
 | 组件 | 版本／模式 | 作用 |
@@ -76,6 +91,19 @@ sing-box 的入站使用 Shadowsocks `aes-128-gcm`，当前仅启用 TCP。其�
 - iOS 客户端实机验证。
 - IPv6 前缀或接口标识变化后的自动更新。
 - 重启后的外部实机回归、长时间稳定性和吞吐测试。
+
+## 全流量后续规划
+
+优先在 Android 设备上直接测试 Cloudflare 官方 `1.1.1.1 + WARP`，不与 Shadowrocket 同时运行：
+
+1. 使用 WARP 的 Traffic and DNS 模式，使设备 TCP、UDP 和 DNS 都进入 WARP。
+2. 关闭移动数据，只保留校园 Wi-Fi，并确认手机仍获得校园 IPv6。
+3. 检查 Cloudflare trace 中的 `warp=on`，同时从连接信息或抓包确认手机到 Cloudflare 的外层连接实际使用 IPv6。
+4. 检查客户端的排除应用列表，确保 UU 远程等目标应用没有被排除。
+5. 按验收清单分别测试网页下载和高 UDP 占比应用，记录校园账户前后流量。
+6. 若外层回退 IPv4、校园账户仍按量扣费或连接不稳定，则停止该路线。
+
+如果必须保留“Shadowrocket → 自建服务器”的结构，则需更换为能够稳定接收入站 IPv6、并提供原生 TCP/UDP 隧道出口的双栈节点。不能继续依赖当前 WARP 本地 SOCKS5 来实现 UDP。
 
 ## 手机端使用边界
 
