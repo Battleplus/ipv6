@@ -33,6 +33,31 @@
 
 因此，当前服务器方案的边界已经明确：它适合浏览器、下载等 TCP 流量验证，不适合作为 UU 远程、游戏、语音视频等全 TCP/UDP 场景的最终方案。
 
+## 2026-09-09 全隧道补充验证
+
+针对上一轮只在 WARP 尚处于 `Connecting` 时采样的问题，又进行了一次带自动回滚保护的复验。结果补充如下：
+
+- `tunnel_only` 能完成 MASQUE IPv6 握手，但隧道内连通性检查因学校 DNS 超时而反复失败，日志明确记录 `DNSLookupFailed`。
+- 改用 `warp`（Traffic and DNS）后，WARP 达到 `Connected / healthy`。
+- sing-box 在同一端口同时建立 TCP 与 UDP 监听。
+- 服务器本机 IPv4、IPv6 Cloudflare trace 均返回 `warp=on`。
+- 通过隧道向公共 DNS 发出的 UDP 查询成功。
+- WARP 外层 MASQUE 会话仍以校园全球单播 IPv6 为源地址连接 Cloudflare IPv6 端点。
+
+这证明服务器全隧道本身能够承载 TCP、UDP 和 DNS，但它仍不能直接作为最终节点：启用后，从校外管理电脑到服务器私网 SSH、服务器公网 IPv6 SSH 和代理端口的探测全部超时。出口健康检查无法发现这一问题，因为它只验证服务器向外访问。
+
+本次正式切换后，服务器从校外管理路径暂时不可达。需要在服务器本地控制台或另一条真正位于校园网内的管理路径执行恢复：
+
+```bash
+warp-cli --accept-tos mode proxy
+warp-cli --accept-tos proxy port 40000
+warp-cli --accept-tos connect
+sudo cp /etc/sing-box/config.json.pre-full /etc/sing-box/config.json
+sudo systemctl restart sing-box
+```
+
+后续若继续使用该服务器实现全 TCP/UDP，应将 WARP 全隧道放入独立网络命名空间、虚拟机或容器，只让 sing-box 的业务出站进入该隔离网络；宿主机 SSH 和校园 IPv6 入站必须保留在原网络栈。任何正式切换必须同时满足“服务器出口自检成功”和“独立外部设备回连成功”，随后才允许取消自动回滚。
+
 ## 已部署组件
 
 | 组件 | 版本／模式 | 作用 |
@@ -91,6 +116,7 @@ sing-box 的入站使用 Shadowsocks `aes-128-gcm`，当前仅启用 TCP。其�
 - iOS 客户端实机验证。
 - IPv6 前缀或接口标识变化后的自动更新。
 - 重启后的外部实机回归、长时间稳定性和吞吐测试。
+- 将 WARP 全隧道与宿主机管理网络隔离，并验证 TCP/UDP 回程。
 
 ## 全流量后续规划
 
